@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GUI } from 'dat.gui';
 
 // Scene, Camera, Renderer setup
 const scene = new THREE.Scene();
@@ -11,6 +12,17 @@ camera.position.z = 5;
 
 // Orbit Controls
 const controls = new OrbitControls(camera, renderer.domElement);
+
+
+// Create GUI
+const gui = new GUI();
+const input_params = {
+    vehicle_speed: 0.02
+};
+
+gui.add(input_params, 'vehicle_speed', 0, 0.1).name('Vehicle Speed').onChange((newSpeed) => {
+    vehicle_speed = newSpeed; // Update the vehicle speed whenever the slider is moved
+});
 
 // Vehicle point
 const vehicle_point_material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
@@ -34,7 +46,8 @@ let vehicle_angle = 0; // The current angle of the vehicle around the ICC
 // Path tracing
 let pathPoints = [];
 let pathLine;
-let pathMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+let pathMaterial = new THREE.LineBasicMaterial();
+let pathSegments = new THREE.Group();
 
 // Function to move the vehicle around the ICC
 function moveVehicle() {
@@ -97,21 +110,49 @@ function setICCandStartMoving(event) {
     );
 }
 
+
+function getColorForRadius(radius) {
+    // Define the two colors you want to interpolate between
+    const innerColor = new THREE.Color(0xff0000); // red for smaller radius
+    const outerColor = new THREE.Color(0x0000ff); // blue for larger radius
+
+    // Map the radius to a 0-1 scale (you might want to adjust the range based on your use case)
+    const normalizedRadius = (radius - 1) / (5 - 1); // assuming the radius varies from 1 to 5
+
+    // Interpolate between the two colors
+    const color = innerColor.clone().lerp(outerColor, normalizedRadius);
+
+    return color;
+}
+
+function addPathSegment(point1, point2, radius) {
+    const segmentColor = getColorForRadius(radius);
+
+        // Create the geometry and material for the segment
+    let segmentGeometry = new THREE.BufferGeometry().setFromPoints([point1, point2]);
+    let segmentMaterial = new THREE.LineBasicMaterial({ color: segmentColor });
+
+    // Create the line segment and add it to the group
+    let segment = new THREE.Line(segmentGeometry, segmentMaterial);
+    pathSegments.add(segment);
+
+}
 function updatePath() {
+    // Get the last point in the pathPoints array
+    let lastPoint = pathPoints[pathPoints.length - 1];
+
     // Add the current position of the vehicle to the pathPoints array
     pathPoints.push(vehicle_point.position.clone());
 
-    // If there's already a line, remove it so we can create a new one
-    if (pathLine) scene.remove(pathLine);
+    // If there's at least one segment, add a new segment
+    if (pathPoints.length > 1) {
+        addPathSegment(lastPoint, pathPoints[pathPoints.length - 1], vehicle_radius);
+    }
 
-    // Create a new geometry from the updated pathPoints
-    let pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
-
-    // Create a new line with the geometry and the predefined material
-    pathLine = new THREE.Line(pathGeometry, pathMaterial);
-
-    // Add the new line to the scene
-    scene.add(pathLine);
+    // Add the new segments to the scene if not already added
+    if (!scene.getObjectById(pathSegments.id)) {
+        scene.add(pathSegments);
+    }
 }
 
 // Add event listener for left mouse click
