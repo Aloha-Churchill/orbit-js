@@ -13,7 +13,6 @@ camera.position.z = 5;
 // Orbit Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 
-
 // Create GUI
 const gui = new GUI();
 const input_params = {
@@ -76,8 +75,8 @@ function onCanvasClick(event) {
 function onCanvasRightClick(event) {
     // Prevent the default context menu from appearing
     event.preventDefault();
-
     console.log('Right click');
+
     // Set ICC as with left click
     setICCandStartMoving(event);
     // Reverse the direction for clockwise movement
