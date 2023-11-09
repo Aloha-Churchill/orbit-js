@@ -13,159 +13,137 @@ camera.position.z = 5;
 // Orbit Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 
+// Mouse Controls
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+renderer.domElement.addEventListener('click', onCanvasClick, false);
+
+// Plane for intersection
+const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+
 // Create GUI
 const gui = new GUI();
+let currentMode = 'addLargeMass';
+
 const input_params = {
-    vehicle_speed: 0.02,
-    num_ICC: 1,
-    num_vehicles: 1
+    addLargeMass: function () { currentMode = 'addLargeMass'; },
+    addSmallMass: function () { currentMode = 'addSmallMass'; }
 };
 
-gui.add(input_params, 'vehicle_speed', 0, 2.0).name('Vehicle Speed').onChange((newSpeed) => {
-    vehicle_speed = newSpeed; // Update the vehicle speed whenever the slider is moved
-});
-gui.add(input_params, 'num_ICC', 1, 10).name('Number of ICC').onChange((newNum) => {
-    num_ICC = newNum; // Update the vehicle speed whenever the slider is moved
-    updatePoints();
-});
-gui.add(input_params, 'num_vehicles', 1, 10).name('Number of Vehicles').onChange((newNum) => {
-    num_vehicles = newNum; // Update the vehicle speed whenever the slider is moved
-    updatePoints();
-});
+gui.add(input_params, 'addLargeMass').name('Add Planets');
+gui.add(input_params, 'addSmallMass').name('Add Satellites');
 
-// Define default parameters
-let vehicle_speed = 0.02; // The speed at which the vehicle orbits around the ICC
-let num_ICC = 1;
-let num_vehicles = 1;
+// Keep track of positions of masses & current mode
+let planetPositions = [];
+let satellitePositions = [];
 
-const vehicles = [];
-const ICCs = [];
+// Mathematical Constants
+const G = 6.67428e-11 * 1e-10;
 
-function createPoint(point_type) {
-    // create a random red point point_type = "vehicle", otherwise a yellow point if point_type == "ICC"
-    const point_material = new THREE.MeshBasicMaterial({ color: point_type == "vehicle" ? 0xff0000 : 0xffff00 });
-    const point_geometry = new THREE.CircleGeometry(0.1, 32);
-    const point = new THREE.Mesh(point_geometry, point_material);
+// Create a mass
+function createMass(isPlanet, position = new THREE.Vector3(0, 0, 0)) {
+    // Create a sphere geometry
+    const geometry = new THREE.SphereGeometry(isPlanet ? 0.5 : 0.1, 32, 32);
 
-    // set the position of the point
-    point.position.set(Math.random() * 10 - 5, Math.random() * 10 - 5, 0);
+    // Create a material
+    const material = new THREE.MeshBasicMaterial({ color: isPlanet ? 0x00ff00 : 0xff0000 });
 
-    // add the point to the scene
-    scene.add(point);
+    // Create a mesh
+    const mesh = new THREE.Mesh(geometry, material);
 
-    // add the point to the corresponding array
-    if (point_type == "vehicle") {
-        point.orbitRadius = 2;
-        vehicles.push(point);
-    } else {
-        ICCs.push(point);
-    }
-
-    return point;
-}
-
-function updatePoints() {
-    // Adjust the ICC points
-    while (ICCs.length > num_ICC) {
-        const icc = ICCs.pop();
-        scene.remove(icc);
-    }
-    while (ICCs.length < num_ICC) {
-        ICCs.push(createPoint("ICC"));
-    }
-
-    // Adjust the vehicle points
-    while (vehicles.length > num_vehicles) {
-        const vehicle = vehicles.pop();
-        scene.remove(vehicle);
-    }
-    while (vehicles.length < num_vehicles) {
-        vehicles.push(createPoint("vehicle"));
-    }
-}
-
-function findNearestICC(vehicle) {
-    let nearestIcc = null;
-    let shortestDistance = Infinity;
+    // Set the position
+    mesh.position.copy(position);
     
-    // Go through all the ICCs to find the nearest one
-    for (const icc of ICCs) {
-        const distance = vehicle.position.distanceTo(icc.position);
+    // set the mass
+    mesh.mass = isPlanet ? 5.972e24 : 7.342e22; 
+
+    // Add the mesh to the scene
+    scene.add(mesh);
+
+    // Add the position to the appropriate array
+    if (isPlanet) {
+        planetPositions.push(mesh);
+    } else {
+        satellitePositions.push(mesh);
+        startOrbit(mesh);
+    }
+}
+
+function onCanvasClick(event) {
+    // Get the mouse position
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // update plane position with camera position
+    // plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(plane.normal), camera.position);
+
+    // Find the intersection with the plane
+    raycaster.setFromCamera(mouse, camera);
+    const intersect = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, intersect);
+
+    // Determine the position where the sphere should be placed
+    const distance = 5; // You can adjust this distance as needed
+    const direction = raycaster.ray.direction.clone().normalize().multiplyScalar(distance);
+    const spherePosition = camera.position.clone().add(direction);
+
+    // Add a mass at the calculated position
+    createMass(currentMode === 'addLargeMass', spherePosition);
+
+}
+
+function startOrbit(satelliteMesh) {
+    // Find the nearest planet to the satellite
+    let nearestPlanet = null;
+    let shortestDistance = Infinity;
+    for (const planetMesh of planetPositions) {
+        const distance = satelliteMesh.position.distanceTo(planetMesh.position);
         if (distance < shortestDistance) {
             shortestDistance = distance;
-            nearestIcc = icc;
+            nearestPlanet = planetMesh;
         }
     }
-    
-    return nearestIcc;
+  
+    if (nearestPlanet) {
+        // Calculate the orbit velocity
+        const r = satelliteMesh.position.distanceTo(nearestPlanet.position);
+        const v = Math.sqrt((G * nearestPlanet.mass) / r);
+
+        // Calculate the tangent vector for the satellite's velocity
+        const direction = new THREE.Vector3().subVectors(satelliteMesh.position, nearestPlanet.position).normalize();
+        const tangent = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
+
+        // Set the satellite's velocity
+        satelliteMesh.velocity = tangent.multiplyScalar(v);
+
+        // Store the planet as the satellite's anchor for orbit
+        satelliteMesh.orbitCenter = nearestPlanet;
+    }
 }
 
 
-// initialize scene with correct amount of vehicles and ICCs
-for (let i = 0; i < input_params.num_vehicles; i++) {
-    createPoint("vehicle");
-}
-for (let i = 0; i < input_params.num_ICC; i++) {
-    createPoint("ICC");
-}
-
-
-
+// Animate
 function animate() {
     requestAnimationFrame(animate);
 
-    // Use delta time for smooth animations
-    const delta = clock.getDelta(); // create a THREE.Clock() instance outside of this function to use here
-
-    // Make each vehicle orbit the nearest ICC
-    for (const vehicle of vehicles) {
-        // Find nearest ICC
-        const nearestIcc = findNearestICC(vehicle);
-        if (nearestIcc) {
-            // Check if we have a target ICC and if it's different from the current nearest ICC
-            if (!vehicle.targetIcc || vehicle.targetIcc !== nearestIcc) {
-                // If there's no targetIcc defined yet or it's different, define/update it
-                vehicle.targetIcc = nearestIcc;
-
-                // Define the new target radius
-                vehicle.targetRadius = vehicle.position.distanceTo(nearestIcc.position);
-                vehicle.transitionProgress = 0; // start the transition
-            }
-
-            // Check if we are in transition
-            if (vehicle.transitionProgress !== undefined && vehicle.transitionProgress < 1) {
-                // Smoothly interpolate from the current orbit radius to the target radius
-                vehicle.orbitRadius += (vehicle.targetRadius - vehicle.orbitRadius) * vehicle.transitionProgress;
-                vehicle.transitionProgress += delta; // progress the transition
-
-                // Clamp the progress so it does not exceed 1
-                if (vehicle.transitionProgress > 1) {
-                    vehicle.orbitRadius = vehicle.targetRadius;
-                    vehicle.transitionProgress = undefined; // end the transition
-                }
-            } else {
-                // If not in transition, just orbit normally
-                if (vehicle.orbitRadius === undefined) {
-                    vehicle.orbitRadius = vehicle.targetRadius;
-                }
-            }
-
-            // Calculate angle for the circular motion, considering a phase offset if needed
-            const angle = ((Date.now() / 1000) * vehicle_speed) % (2 * Math.PI);
-
-            // Set the new position for the vehicle to orbit the ICC
-            vehicle.position.x = vehicle.targetIcc.position.x + Math.cos(angle) * vehicle.orbitRadius;
-            vehicle.position.y = vehicle.targetIcc.position.y + Math.sin(angle) * vehicle.orbitRadius;
+    // Update satellite positions
+    satellitePositions.forEach(satelliteMesh => {
+        if (satelliteMesh.velocity) {
+            satelliteMesh.position.add(satelliteMesh.velocity);
         }
-    }
+        // Make sure the satellite is still in orbit around its planet
+        if (satelliteMesh.orbitCenter) {
+            const orbitCenter = satelliteMesh.orbitCenter.position;
+            const direction = satelliteMesh.position.clone().sub(orbitCenter).normalize();
+            satelliteMesh.velocity = new THREE.Vector3(-direction.y, direction.x, 0).normalize().multiplyScalar(satelliteMesh.velocity.length());
+        }
+    });
 
+    // Update the controls
     controls.update();
+
+    // Render
     renderer.render(scene, camera);
 }
 
-// Outside the animate function, create a THREE.Clock instance
-const clock = new THREE.Clock();
-
-
-updatePoints();
 animate();
