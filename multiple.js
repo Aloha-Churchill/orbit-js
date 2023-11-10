@@ -10,6 +10,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 camera.position.z = 5;
 
+
 // Orbit Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 
@@ -38,7 +39,7 @@ let planetPositions = [];
 let satellitePositions = [];
 
 // Mathematical Constants
-const G = 6.67428e-11 * 1e-10;
+const G =  1;
 
 // Create a mass
 function createMass(isPlanet, position = new THREE.Vector3(0, 0, 0)) {
@@ -53,9 +54,9 @@ function createMass(isPlanet, position = new THREE.Vector3(0, 0, 0)) {
 
     // Set the position
     mesh.position.copy(position);
-    
+
     // set the mass
-    mesh.mass = isPlanet ? 5.972e24 : 7.342e22; 
+    mesh.mass = 1;
 
     // Add the mesh to the scene
     scene.add(mesh);
@@ -64,6 +65,7 @@ function createMass(isPlanet, position = new THREE.Vector3(0, 0, 0)) {
     if (isPlanet) {
         planetPositions.push(mesh);
     } else {
+        mesh.velocity = new THREE.Vector3(0, 0, 0);
         satellitePositions.push(mesh);
         startOrbit(mesh);
     }
@@ -92,7 +94,8 @@ function onCanvasClick(event) {
 
 }
 
-function startOrbit(satelliteMesh) {
+
+function findNearestPlanet(satelliteMesh) {
     // Find the nearest planet to the satellite
     let nearestPlanet = null;
     let shortestDistance = Infinity;
@@ -103,11 +106,26 @@ function startOrbit(satelliteMesh) {
             nearestPlanet = planetMesh;
         }
     }
-  
+
+    return [nearestPlanet, shortestDistance];
+}
+
+function startOrbit(satelliteMesh) {
+    // Find the nearest planet to the satellite
+    const [nearestPlanet, shortestDistance] = findNearestPlanet(satelliteMesh);
+
+    // log nearest planet
+    console.log("Nearset Planet: ", nearestPlanet);
+    console.log("shortestDistance: ", shortestDistance);
+
+
     if (nearestPlanet) {
         // Calculate the orbit velocity
         const r = satelliteMesh.position.distanceTo(nearestPlanet.position);
         const v = Math.sqrt((G * nearestPlanet.mass) / r);
+
+        // log velocity on console
+        console.log(v);
 
         // Calculate the tangent vector for the satellite's velocity
         const direction = new THREE.Vector3().subVectors(satelliteMesh.position, nearestPlanet.position).normalize();
@@ -121,23 +139,44 @@ function startOrbit(satelliteMesh) {
     }
 }
 
+function updateSatellitePositions() {
+    for (const satelliteMesh of satellitePositions) {
+        // Find the nearest planet to the satellite
+        const [planet, shortestDistance] = findNearestPlanet(satelliteMesh);
+        // const planet = satelliteMesh.orbitCenter;
+
+        // console.logs
+        console.log("planet: ", planet);
+
+        // Gravitational force calculation
+        const directionToPlanet = new THREE.Vector3().subVectors(planet.position, satelliteMesh.position);
+        const distanceSquared = directionToPlanet.lengthSq();
+        const forceMagnitude = G * planet.mass / distanceSquared;
+        const forceDirection = directionToPlanet.normalize();
+        const gravityForce = forceDirection.multiplyScalar(forceMagnitude);
+
+        console.log("gravityForce: ", gravityForce);
+
+        // Update velocity based on gravity
+        satelliteMesh.velocity.add(gravityForce);
+
+        console.log("satelliteMesh.velocity: ", satelliteMesh.velocity);
+
+        // Update position
+        satelliteMesh.position.add(satelliteMesh.velocity);
+
+        // console.log
+        console.log("satelliteMesh.position: ", satelliteMesh.position);
+    }
+}
+
 
 // Animate
 function animate() {
     requestAnimationFrame(animate);
 
     // Update satellite positions
-    satellitePositions.forEach(satelliteMesh => {
-        if (satelliteMesh.velocity) {
-            satelliteMesh.position.add(satelliteMesh.velocity);
-        }
-        // Make sure the satellite is still in orbit around its planet
-        if (satelliteMesh.orbitCenter) {
-            const orbitCenter = satelliteMesh.orbitCenter.position;
-            const direction = satelliteMesh.position.clone().sub(orbitCenter).normalize();
-            satelliteMesh.velocity = new THREE.Vector3(-direction.y, direction.x, 0).normalize().multiplyScalar(satelliteMesh.velocity.length());
-        }
-    });
+    updateSatellitePositions();
 
     // Update the controls
     controls.update();
