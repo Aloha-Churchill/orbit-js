@@ -39,7 +39,8 @@ let planetPositions = [];
 let satellitePositions = [];
 
 // Mathematical Constants
-const G =  1;
+const G =  10000;
+const DELTA_TIME = 0.001;
 
 // Create a mass
 function createMass(isPlanet, position = new THREE.Vector3(0, 0, 0)) {
@@ -56,7 +57,7 @@ function createMass(isPlanet, position = new THREE.Vector3(0, 0, 0)) {
     mesh.position.copy(position);
 
     // set the mass
-    mesh.mass = 1;
+    mesh.mass = isPlanet ? 10 : 1;
 
     // Add the mesh to the scene
     scene.add(mesh);
@@ -110,66 +111,57 @@ function findNearestPlanet(satelliteMesh) {
     return [nearestPlanet, shortestDistance];
 }
 
-function startOrbit(satelliteMesh) {
-    // Find the nearest planet to the satellite
-    const [nearestPlanet, shortestDistance] = findNearestPlanet(satelliteMesh);
+function applyGravitationalForceFromPlanets(satelliteMesh) {
+    // keep an array of vectors to each planet from the satellite
+    console.log(satelliteMesh.position)
+    for (const planetMesh of planetPositions) {
+        // add console.log statements to see what's going on
+        const directionToPlanet = new THREE.Vector3().subVectors(planetMesh.position, satelliteMesh.position);
+        // console.log(directionToPlanet);
+        const distanceSquared = directionToPlanet.lengthSq();
+        // console.log(distanceSquared);
 
-    // log nearest planet
-    console.log("Nearset Planet: ", nearestPlanet);
-    console.log("shortestDistance: ", shortestDistance);
+        // if satellite is too close to planet, record collision
+        if (distanceSquared <= 0.25) {
+            console.log("collision");
+            planetMesh.mass += (satelliteMesh.mass);
+            scene.remove(satelliteMesh);
+            satellitePositions.splice(satellitePositions.indexOf(satelliteMesh), 1);
+            continue;
+        }
 
 
-    if (nearestPlanet) {
-        // Calculate the orbit velocity
-        const r = satelliteMesh.position.distanceTo(nearestPlanet.position);
-        const v = Math.sqrt((G * nearestPlanet.mass) / r);
+        const forceMagnitude = G * planetMesh.mass / distanceSquared;
+        // console.log(forceMagnitude);
+        const forceDirection = directionToPlanet.normalize();
+        // console.log(forceDirection);
+        const gravityForce = forceDirection.multiplyScalar(forceMagnitude);
+        // console.log(gravityForce);
 
-        // log velocity on console
-        console.log(v);
+        // Update velocity based on gravity
+        satelliteMesh.velocity.add(gravityForce.multiplyScalar(DELTA_TIME));
 
-        // Calculate the tangent vector for the satellite's velocity
-        const direction = new THREE.Vector3().subVectors(satelliteMesh.position, nearestPlanet.position).normalize();
-        const tangent = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
+        // Update position
+        satelliteMesh.position.add(satelliteMesh.velocity.multiplyScalar(DELTA_TIME));
 
-        // Set the satellite's velocity
-        satelliteMesh.velocity = tangent.multiplyScalar(v);
-
-        // Store the planet as the satellite's anchor for orbit
-        satelliteMesh.orbitCenter = nearestPlanet;
+        // console log new position and velocity
+        // console.log(satelliteMesh.position);
+        console.log(satelliteMesh.velocity);
     }
+}
+
+function startOrbit(satelliteMesh) {
+
+    // for now, initialize each satellite's velocity to 0
+    console.log(satelliteMesh.position);
+    satelliteMesh.velocity = new THREE.Vector3(0, 0, 0);
 }
 
 function updateSatellitePositions() {
     for (const satelliteMesh of satellitePositions) {
-        // Find the nearest planet to the satellite
-        const [planet, shortestDistance] = findNearestPlanet(satelliteMesh);
-        // const planet = satelliteMesh.orbitCenter;
-
-        // console.logs
-        console.log("planet: ", planet);
-
-        // Gravitational force calculation
-        const directionToPlanet = new THREE.Vector3().subVectors(planet.position, satelliteMesh.position);
-        const distanceSquared = directionToPlanet.lengthSq();
-        const forceMagnitude = G * planet.mass / distanceSquared;
-        const forceDirection = directionToPlanet.normalize();
-        const gravityForce = forceDirection.multiplyScalar(forceMagnitude);
-
-        console.log("gravityForce: ", gravityForce);
-
-        // Update velocity based on gravity
-        satelliteMesh.velocity.add(gravityForce);
-
-        console.log("satelliteMesh.velocity: ", satelliteMesh.velocity);
-
-        // Update position
-        satelliteMesh.position.add(satelliteMesh.velocity);
-
-        // console.log
-        console.log("satelliteMesh.position: ", satelliteMesh.position);
+        applyGravitationalForceFromPlanets(satelliteMesh);
     }
 }
-
 
 // Animate
 function animate() {
