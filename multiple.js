@@ -18,6 +18,9 @@ const controls = new OrbitControls(camera, renderer.domElement);
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 renderer.domElement.addEventListener('click', onCanvasClick, false);
+renderer.domElement.addEventListener('mousemove', onMouseMove, false);
+renderer.domElement.addEventListener('mousedown', onMouseDown, false);
+renderer.domElement.addEventListener('mouseup', onMouseUp, false);
 
 // Plane for intersection
 const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
@@ -41,6 +44,8 @@ let satellitePositions = [];
 // Mathematical Constants
 const G =  10000;
 const DELTA_TIME = 0.001;
+const ORIGINAL_PLANET_MASS = 10;
+const SATELLITE_MASS = 1;
 
 // Create a mass
 function createMass(isPlanet, position = new THREE.Vector3(0, 0, 0)) {
@@ -57,7 +62,7 @@ function createMass(isPlanet, position = new THREE.Vector3(0, 0, 0)) {
     mesh.position.copy(position);
 
     // set the mass
-    mesh.mass = isPlanet ? 10 : 1;
+    mesh.mass = isPlanet ? ORIGINAL_PLANET_MASS : SATELLITE_MASS;
 
     // Add the mesh to the scene
     scene.add(mesh);
@@ -92,7 +97,38 @@ function onCanvasClick(event) {
 
     // Add a mass at the calculated position
     createMass(currentMode === 'addLargeMass', spherePosition);
+}
 
+// set planet mesh color and size based on mass
+function setPlanetColor(planetMesh) {
+    // set color based on mass
+    const color = new THREE.Color();
+    color.setHSL(planetMesh.mass / 100, 1, 0.5);
+    planetMesh.material.color = color;
+
+    // set size based on mass, default mass is 
+}
+
+// calulate ability to retain or lose mass upon collision
+function calculateMassRetained(planetMesh) {
+    
+    // 0.5 probability at original mass, 0 probability at 0 mass, 1 probability at infinite mass, otherwise follow sigmoid function
+    const probabilty_to_gain = 1 / (1 + Math.exp(-(planetMesh.mass - ORIGINAL_PLANET_MASS)));
+
+    // if random number is less than probability to retain, retain mass, otherwise lose mass
+    const random_number = Math.random();
+    if (random_number < probabilty_to_gain) {
+        // gain satellite mass from the planet and resize planet accordingly    
+        planetMesh.mass += SATELLITE_MASS;
+        setPlanetColor(planetMesh);
+    }
+    else {
+        // lose satellite mass from the planet and resize planet accordingly
+        planetMesh.mass -= SATELLITE_MASS;
+        setPlanetColor(planetMesh);
+    }
+    // const massRetained = planetMesh.mass - (planetMesh.mass * 0.5);
+    // return massRetained;
 }
 
 
@@ -124,7 +160,8 @@ function applyGravitationalForceFromPlanets(satelliteMesh) {
         // if satellite is too close to planet, record collision
         if (distanceSquared <= 0.25) {
             console.log("collision");
-            planetMesh.mass += (satelliteMesh.mass);
+            // calculate mass retained by planet
+            calculateMassRetained(planetMesh);
             scene.remove(satelliteMesh);
             satellitePositions.splice(satellitePositions.indexOf(satelliteMesh), 1);
             continue;
@@ -152,9 +189,12 @@ function applyGravitationalForceFromPlanets(satelliteMesh) {
 
 function startOrbit(satelliteMesh) {
 
+
     // for now, initialize each satellite's velocity to 0
     console.log(satelliteMesh.position);
-    satelliteMesh.velocity = new THREE.Vector3(0, 0, 0);
+    // initialize satellite velocity to random velocity
+    satelliteMesh.velocity = new THREE.Vector3(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+    // satelliteMesh.velocity = new THREE.Vector3(0, 0, 0);
 }
 
 function updateSatellitePositions() {
