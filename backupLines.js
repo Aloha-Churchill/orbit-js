@@ -106,27 +106,12 @@ function calculate_zone1() {
     scene.add( ICC_to_upper_wheel_line );
     scene.add( ICC_to_lower_wheel_line );
 
-    // add two circles around ICC with radius r1 and r2
-    // const circle1_geometry = new THREE.CircleGeometry( r1, 32 );
-    // const circle2_geometry = new THREE.CircleGeometry( r2, 32 );
-    // const circle1 = new THREE.Line( circle1_geometry, circle_material );
-    // const circle2 = new THREE.Line( circle2_geometry, circle_material );
-    // circle1.position.add(ICC);
-    // circle2.position.add(ICC);
-    // scene.add( circle1 );
-    // scene.add( circle2 );
 
     // caluclate helper angles
     const theta_1 = Math.acos(r3/r2);
     const theta_2 = Math.acos(r4/r1) - theta_1;
     var theta_3 = Math.PI/4;
-    // var ZONE_AREA = Infinity;
-    // while (Math.abs(ZONE_AREA - input_params.zone1_area) > 0.1) {
-    //     ZONE_AREA = 0.5*(theta_2 + theta_3)*Math.pow(r2, 2) - 0.5*r1*r2*Math.sin(theta_2) - 0.5*theta_3*Math.pow(r1, 2);
-    //     const scale_factor = Math.abs(input_params.zone1_area - ZONE_AREA)
-    //     theta_3 = theta_3 / scale_factor;
-    // }
-    // // var theta_3 = Math.PI/4;
+
     const ZONE_AREA = 0.5*(theta_2 + theta_3)*Math.pow(r2, 2) - 0.5*r1*r2*Math.sin(theta_2) - 0.5*theta_3*Math.pow(r1, 2);
     console.log("ZONE_AREA: ", ZONE_AREA);
     const scale_factor = Math.abs(input_params.zone1_area - ZONE_AREA)
@@ -138,8 +123,10 @@ function calculate_zone1() {
     const start_angle2 = input_params.articulation_angle > 0 ? Math.PI - theta_1 : Math.PI - (theta_1 + theta_2) - theta_3;
     const end_angle2 = input_params.articulation_angle > 0 ? Math.PI - (theta_1 + theta_2) - theta_3 : Math.PI - (theta_1 + theta_2) - theta_3;
 
-    const curve1 = new THREE.EllipseCurve( ICC.x, ICC.y, r1, r1, start_angle1, end_angle1, input_params.articulation_angle > 0 ? true: true, 0 );
-    const curve2 = new THREE.EllipseCurve( ICC.x, ICC.y, r2, r2, start_angle2, end_angle2,  input_params.articulation_angle > 0 ? true: true, 0 );
+    //const curve1 = new THREE.EllipseCurve( ICC.x, ICC.y, r1, r1, start_angle1, end_angle1, input_params.articulation_angle > 0 ? true: true, 0 );
+    //const curve2 = new THREE.EllipseCurve( ICC.x, ICC.y, r2, r2, start_angle2, end_angle2,  input_params.articulation_angle > 0 ? true: true, 0 );
+    const curve1 = new THREE.EllipseCurve( ICC.x, ICC.y, r1, r1, 0, 2*Math.PI, input_params.articulation_angle > 0 ? true: true, 0 );
+    const curve2 = new THREE.EllipseCurve( ICC.x, ICC.y, r2, r2, 0, 2*Math.PI,  input_params.articulation_angle > 0 ? true: true, 0 );
     const points1 = curve1.getPoints( 50 );
     const points2 = curve2.getPoints( 50 );
     const geometry1 = new THREE.BufferGeometry().setFromPoints( points1 );
