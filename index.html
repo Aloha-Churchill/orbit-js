@@ -5,24 +5,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orbit.js</title>
     <style>
-        /* Your CSS styling */
-        body { font-family: Arial, sans-serif; }
-        .header { text-align: center; padding: 20px; }
-        .nav { text-align: center; margin: 20px; }
-        .nav a { margin: 0 10px; text-decoration: none; color: blue; }
+        /* Styling for body and overall layout */
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: black;
+            color: white;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Styling for the header */
+        .header { 
+            text-align: center; 
+            padding: 30px; 
+            background-color: #333;
+        }
+
+        /* Styling for the navigation sections */
+        .nav-section {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .nav-section h2 {
+            margin-bottom: 15px;
+        }
+
+        /* Styling for the navigation links */
+        .nav a { 
+            margin: 10px;
+            padding: 10px 20px;
+            text-decoration: none; 
+            color: white;
+            background-color: #555;
+            border: solid 1px #777;
+            border-radius: 5px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .nav a:hover {
+            background-color: #777;
+            transform: scale(1.05);
+        }
+
+        /* Responsive design adjustments */
+        @media (max-width: 600px) {
+            .nav-section { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Welcome to Orbit.js</h1>
+        <h1 style="color: gold; font-family: 'Courier New', Courier, monospace ">Welcome to Orbit.js</h1>
     </div>
-    <div class="nav">
-        <a href="html/moveICC.html">Instantaneous Center of Curvature Art Clicker</a>
-		<a href="html/backupLines.html">Backup Lines</a>
-		<a href="html/moveICCRadialPath.html">Instantaneous Center of Curvature Radial Path</a>
-		<a href="html/moveICCNoPath.html">Instantaneous Center of Curvature No Path</a>
-		<a href="html/orbitExplorer.html">Orbit Explorer</a>
-		<a href="html/galaxyGenerator.html">Galaxy Generator</a>
+
+    <!-- ICC Section -->
+    <div class="nav-section">
+        <h2 style="color: fuchsia; font-family: 'Courier New', Courier, monospace;">ICC</h2>
+		<!-- add padding -->
+		<div style="height: 20px;"></div>
+        <div class="nav">
+            <a href="html/moveICC.html">Instantaneous Center of Curvature Art Clicker</a>
+            <a href="html/backupLines.html">Backup Lines</a>
+            <a href="html/moveICCRadialPath.html">Instantaneous Center of Curvature Radial Path</a>
+            <a href="html/moveICCNoPath.html">Instantaneous Center of Curvature No Path</a>
+        </div>
+    </div>
+
+	<!-- Add padding -->
+	<div style="height: 50px;"></div>
+
+
+    <!-- Orbit Section -->
+    <div class="nav-section">
+        <h2 style="color:aqua; font-family: 'Courier New', Courier, monospace;">Orbit</h2>
+		<!-- add padding -->
+		<div style="height: 20px;"></div>
+        <div class="nav">
+            <a href="html/orbitExplorer.html">Orbit Explorer</a>
+            <a href="html/galaxyGenerator.html">Galaxy Generator</a>
+        </div>
     </div>
 </body>
 </html>
